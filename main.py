@@ -11,6 +11,7 @@ class OCRTagger(AddOn):
 
     def main(self):
         """ For each document finds the ocr value from the json text and tags """
+        self.client.session.headers.update({'User-Agent': 'OCR Tagger Add-On'})
         for document in self.get_documents():
             try:
                 json_text_url = f"{document.asset_url}documents/{document.id}/{document.slug}.txt.json"
