@@ -14,6 +14,17 @@ from documentcloud.exceptions import APIError
 class OCRTagger(AddOn):
     """Tags documents with OCR engine"""
 
+    OCR_MAPPING = {
+        "tess4": "tesseract",
+        "tess4_force": "tesseract",
+        "textract": "textract",
+        "textract_force": "textract",
+        "azuredi": "azure",
+        "googlecv": "google",
+        "doctr": "doctr",
+        "None": "None",
+    }
+
     def tag_document(self, document, value, max_retries=5, retry_delay=60):
         """Tags document with OCR engine"""
         retries = 0
@@ -38,34 +49,24 @@ class OCRTagger(AddOn):
             )
             sys.exit(1)
 
+    def get_ocr_value(self, document):
+        """Fetch the OCR engine from the document's TXT JSON asset."""
+        json_text_url = (
+            f"{document.asset_url}documents/" f"{document.id}/{document.slug}.txt.json"
+        )
+        try:
+            response = self.client.session.get(json_text_url, timeout=10)
+            response.raise_for_status()
+            return response.json()["pages"][0]["ocr"]
+        except requests.exceptions.RequestException:
+            return "None"
+
     def main(self):
         """For each document finds the ocr value from the json text and tags"""
-
         self.client.session.headers.update({"User-Agent": "OCR Tagger Add-On"})
         for document in self.get_documents():
-            try:
-                json_text_url = f"""
-                    {document.asset_url}documents/
-                    {document.id}/{document.slug}.txt.json
-                """
-                response = requests.get(json_text_url, timeout=10)
-                json_data = response.json()
-                ocr_value = json_data["pages"][0]["ocr"]
-            except requests.exceptions.RequestException:
-                ocr_value = "None"
-            ocr_mapping = {
-                "tess4": "tesseract",
-                "tess4_force": "tesseract",
-                "textract": "textract",
-                "textract_force": "textract",
-                "azuredi": "azure",
-                "googlecv": "google",
-                "doctr": "doctr",
-                "None": "None",
-            }
-
-            ocr_value_to_tag = ocr_mapping.get(ocr_value)
-
+            ocr_value = self.get_ocr_value(document)
+            ocr_value_to_tag = self.OCR_MAPPING.get(ocr_value)
             self.tag_document(document, ocr_value_to_tag)
 
 
