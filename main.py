@@ -5,6 +5,7 @@ with the OCR engine used on said documents.
 
 import sys
 import time
+import requests
 
 from documentcloud.addon import AddOn
 from documentcloud.exceptions import APIError
@@ -51,14 +52,22 @@ class OCRTagger(AddOn):
     def get_ocr_value(self, document):
         """Fetch the OCR engine from the document's TXT JSON asset."""
         json_text_url = (
-            f"{document.asset_url}documents/" f"{document.id}/{document.slug}.txt.json"
+            f"{document.asset_url}documents/"
+            f"{document.id}/{document.slug}.txt.json"
         )
         try:
             response = self.client.session.get(json_text_url, timeout=10)
             response.raise_for_status()
-            return response.json()["pages"][0]["ocr"]
+            return_value = response.json()["pages"][0]["ocr"]
+            return return_value
         except APIError:
             return "None"
+        except requests.exceptions.RequestException as exc:
+            print(f"FETCH FAILED for {document.id}: {exc}")
+            return None
+        except ValueError as exc:
+            print(f"BAD JSON for {document.id}: {exc}")
+            return None
 
     def main(self):
         """For each document finds the ocr value from the json text and tags"""
