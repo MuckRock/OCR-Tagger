@@ -50,23 +50,15 @@ class OCRTagger(SoftTimeOutAddOn):
             sys.exit(1)
 
     def get_ocr_value(self, document):
-        """Fetch the OCR engine from the document's TXT JSON asset."""
-        json_text_url = (
-            f"{document.asset_url}documents/"
-            f"{document.id}/{document.slug}.txt.json"
-        )
+        """Fetch the OCR engine from the document's JSON text."""
         try:
-            response = self.client.session.get(json_text_url, timeout=10)
-            response.raise_for_status()
-            return_value = response.json()["pages"][0]["ocr"]
-            return return_value
-        except APIError:
-            return "None"
-        except requests.exceptions.RequestException as exc:
-            print(f"FETCH FAILED for {document.id}: {exc}")
+            json_text = document.json_text  # library handles URL, session, and rate limiting
+            return json_text["pages"][0]["ocr"]
+        except (KeyError, IndexError) as exc:
+            print(f"UNEXPECTED JSON SHAPE for {document.id}: {exc}")
             return None
-        except ValueError as exc:
-            print(f"BAD JSON for {document.id}: {exc}")
+        except Exception as exc:  # noqa: BLE001 -- see note below
+            print(f"FETCH FAILED for {document.id}: {exc}")
             return None
 
     def main(self):
