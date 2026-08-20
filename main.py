@@ -6,7 +6,6 @@ with the OCR engine used on said documents.
 import sys
 import time
 
-import requests
 from documentcloud.addon import AddOn
 from documentcloud.exceptions import APIError
 
@@ -58,7 +57,7 @@ class OCRTagger(AddOn):
             response = self.client.session.get(json_text_url, timeout=10)
             response.raise_for_status()
             return response.json()["pages"][0]["ocr"]
-        except requests.exceptions.RequestException:
+        except APIError:
             return "None"
 
     def main(self):
