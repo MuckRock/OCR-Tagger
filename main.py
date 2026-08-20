@@ -75,6 +75,11 @@ class OCRTagger(SoftTimeOutAddOn):
         for document in self.get_documents():
             ocr_value = self.get_ocr_value(document)
             ocr_value_to_tag = self.OCR_MAPPING.get(ocr_value)
+            if ocr_value_to_tag is None:
+                print(
+                    f"Skipping {document.id}: unmapped OCR value {ocr_value!r}."
+                )
+                continue
             self.tag_document(document, ocr_value_to_tag)
 
 
