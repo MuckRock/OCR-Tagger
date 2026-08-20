@@ -81,6 +81,7 @@ class OCRTagger(SoftTimeOutAddOn):
                 )
                 continue
             self.tag_document(document, ocr_value_to_tag)
+            time.sleep(.2)
 
 
 if __name__ == "__main__":
