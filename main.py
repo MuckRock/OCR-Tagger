@@ -5,10 +5,12 @@ with the OCR engine used on said documents.
 
 import sys
 import time
-import requests
+from itertools import batched
 
 from documentcloud.addon import SoftTimeOutAddOn
 from documentcloud.exceptions import APIError
+
+BATCH_SIZE = 25
 
 
 class OCRTagger(SoftTimeOutAddOn):
@@ -52,28 +54,36 @@ class OCRTagger(SoftTimeOutAddOn):
     def get_ocr_value(self, document):
         """Fetch the OCR engine from the document's JSON text."""
         try:
-            json_text = document.json_text  # library handles URL, session, and rate limiting
+            json_text = document.json_text
             return json_text["pages"][0]["ocr"]
         except (KeyError, IndexError) as exc:
             print(f"UNEXPECTED JSON SHAPE for {document.id}: {exc}")
             return None
-        except Exception as exc:  # noqa: BLE001 -- see note below
+        except APIError as exc:
             print(f"FETCH FAILED for {document.id}: {exc}")
             return None
 
     def main(self):
-        """For each document finds the ocr value from the json text and tags"""
+        """
+        For each document finds the ocr value from the json text and tags.
+        Does this in batches to save on API calls.
+        """
         self.client.session.headers.update({"User-Agent": "OCR Tagger Add-On"})
-        for document in self.get_documents():
-            ocr_value = self.get_ocr_value(document)
-            ocr_value_to_tag = self.OCR_MAPPING.get(ocr_value)
-            if ocr_value_to_tag is None:
-                print(
-                    f"Skipping {document.id}: unmapped OCR value {ocr_value!r}."
+        for chunk in batched(self.get_documents(), BATCH_SIZE):
+            payload = []
+            for document in chunk:
+                ocr_value = self.get_ocr_value(document)
+                ocr_value_to_tag = self.OCR_MAPPING.get(ocr_value)
+                if ocr_value_to_tag is None:
+                    print(f"Skipping {document.id}: unmapped OCR value {ocr_value!r}.")
+                    continue
+                payload.append(
+                    {"id": document.id, "data": {"ocr_engine": ocr_value_to_tag}}
                 )
-                continue
-            self.tag_document(document, ocr_value_to_tag)
-            time.sleep(.2)
+
+            if payload:
+                print(f"Tagging batch of {len(payload)} documents...")
+                self.client.patch("documents/", json=payload)
 
 
 if __name__ == "__main__":
