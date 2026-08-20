@@ -7,11 +7,11 @@ import sys
 import time
 import requests
 
-from documentcloud.addon import AddOn
+from documentcloud.addon import SoftTimeOutAddOn
 from documentcloud.exceptions import APIError
 
 
-class OCRTagger(AddOn):
+class OCRTagger(SoftTimeOutAddOn):
     """Tags documents with OCR engine"""
 
     OCR_MAPPING = {
