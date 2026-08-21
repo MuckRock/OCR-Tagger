@@ -27,29 +27,29 @@ class OCRTagger(SoftTimeOutAddOn):
         "None": "None",
     }
 
-    def tag_document(self, document, value, max_retries=5, retry_delay=60):
-        """Tags document with OCR engine"""
+    def tag_documents(self, payload, max_retries=5, retry_delay=60):
+        """Bulk-tag a batch of documents, retrying on failure.
+
+        `payload` is a list of {"id": ..., "data": {...}} objects (up to 25).
+        """
         retries = 0
         while retries < max_retries:
             try:
-                print("Tagging document...")
-                self.client.patch(
-                    f"documents/{document.id}/",
-                    json={"data": {"ocr_engine": value}},
-                )
-                print("Finished tagging document")
-                break
+                print(f"Tagging batch of {len(payload)} documents...")
+                self.client.patch("documents/", json=payload)
+                print("Finished tagging batch")
+                return
             except APIError as exc:
-                print(f"Error tagging document. {exc}. Retrying...")
+                print(f"Error tagging batch. {exc}. Retrying...")
                 retries += 1
                 time.sleep(retry_delay)
-        else:
-            print(f"Failed to tag document after {max_retries} attempts.")
-            self.set_message(
-                "Failed to set the OCR tag for this document. "
-                "Email info@documentcloud.org to debug."
-            )
-            sys.exit(1)
+        # Retries exhausted
+        print(f"Failed to tag batch after {max_retries} attempts.")
+        self.set_message(
+            "Failed to set the OCR tag for some documents. "
+            "Email info@documentcloud.org to debug."
+        )
+        sys.exit(1)
 
     def get_ocr_value(self, document):
         """Fetch the OCR engine from the document's JSON text."""
@@ -80,10 +80,8 @@ class OCRTagger(SoftTimeOutAddOn):
                 payload.append(
                     {"id": document.id, "data": {"ocr_engine": ocr_value_to_tag}}
                 )
-
             if payload:
-                print(f"Tagging batch of {len(payload)} documents...")
-                self.client.patch("documents/", json=payload)
+                self.tag_documents(payload)
 
 
 if __name__ == "__main__":
